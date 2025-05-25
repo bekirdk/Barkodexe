@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     Typography,
     Box,
@@ -12,42 +12,84 @@ import {
     TableContainer,
     TableHead,
     TableRow,
-    Stack // Form için Stack kullanalım
+    Stack,
+    CircularProgress, // Yükleme göstergesi için
+    Alert // Hata/Başarı mesajları için
 } from '@mui/material';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
-import { FAKE_PRODUCTS } from '../data/products';
+import axios from 'axios'; // axios'u import ediyoruz
+
+// Backend API'mizin temel URL'si
+// .env dosyasından almak daha iyi bir pratiktir ama şimdilik böyle kalsın.
+const API_URL = 'http://localhost:5194/api'; // Sizdeki HTTP portu farklıysa güncelleyin
 
 const Urunlerim = () => {
+    const [products, setProducts] = useState([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState(null);
+    const [successMessage, setSuccessMessage] = useState(null);
+
+    // Yeni ürün formu için state'ler
     const [newBarcode, setNewBarcode] = useState('');
     const [newProductName, setNewProductName] = useState('');
     const [newPrice, setNewPrice] = useState('');
     const [newStock, setNewStock] = useState('');
 
-    const [products, setProducts] = useState(FAKE_PRODUCTS);
-
-    const handleAddProduct = () => {
-        if (!newBarcode || !newProductName || !newPrice || !newStock) {
-            alert("Lütfen tüm alanları doldurun.");
-            return;
+    // Ürünleri getiren fonksiyon
+    const fetchProducts = useCallback(async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const response = await axios.get(`${API_URL}/urunler`);
+            setProducts(response.data);
+        } catch (err) {
+            setError("Ürünler yüklenirken bir hata oluştu: " + (err.response?.data?.message || err.message));
+            console.error("Ürünleri getirme hatası:", err);
         }
+        setIsLoading(false);
+    }, []);
 
-        const newProduct = {
-            id: Date.now(),
-            barcode: newBarcode,
-            productName: newProductName,
-            price: parseFloat(newPrice),
-            stock: parseInt(newStock)
-        };
+    // Sayfa ilk yüklendiğinde ürünleri çek
+    useEffect(() => {
+        fetchProducts();
+    }, [fetchProducts]);
 
-        console.log("Yeni Ürün Eklendi:", newProduct);
-        setProducts([...products, newProduct]);
-
+    const clearForm = () => {
         setNewBarcode('');
         setNewProductName('');
         setNewPrice('');
         setNewStock('');
+    };
 
-        alert("Ürün (geçici olarak) eklendi!");
+    const handleAddProduct = async () => {
+        if (!newBarcode || !newProductName || !newPrice || !newStock) {
+            setError("Lütfen tüm ürün bilgilerini doldurun.");
+            setSuccessMessage(null);
+            return;
+        }
+        setError(null);
+        setSuccessMessage(null);
+        setIsLoading(true); // Yükleme durumunu başlat
+
+        const newProductData = {
+            barkod: newBarcode,
+            urunAdi: newProductName,
+            fiyat: parseFloat(newPrice),
+            stok: parseInt(newStock),
+            // Aciklama gibi diğer alanlar backend'de varsayılan veya null olabilir
+        };
+
+        try {
+            const response = await axios.post(`${API_URL}/urunler`, newProductData);
+            // setProducts([...products, response.data]); // VEYA listeyi yeniden çek:
+            fetchProducts(); // Listeyi güncel tutmak için yeniden çek
+            setSuccessMessage(`'${response.data.urunAdi}' başarıyla eklendi!`);
+            clearForm();
+        } catch (err) {
+            setError("Ürün eklenirken bir hata oluştu: " + (err.response?.data?.message || err.message));
+            console.error("Ürün ekleme hatası:", err);
+        }
+        setIsLoading(false); // Yükleme durumunu bitir
     };
 
     return (
@@ -56,33 +98,31 @@ const Urunlerim = () => {
                 Ürünlerim ve Stok Yönetimi
             </Typography>
 
-            {/* Grid container'ına display: 'flex' ekleyebiliriz veya item'lara height: '100%' */}
-            <Grid container spacing={3} sx={{ alignItems: 'stretch' }}> {/* alignItems: 'stretch' ekledik */}
+            {/* Mesajlar */}
+            {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+            {successMessage && <Alert severity="success" sx={{ mb: 2 }}>{successMessage}</Alert>}
 
-                {/* Sol Taraf: Yeni Ürün Ekleme Formu */}
+
+            <Grid container spacing={3} sx={{ alignItems: 'stretch' }}>
                 <Grid item xs={12} md={4}>
-                    <Paper sx={{
-                        padding: '1.5rem',
-                        height: '100%', // <<<=== Yüksekliği %100 yaptık
-                        display: 'flex', // <<<=== Flexbox ekledik
-                        flexDirection: 'column' // <<<=== Dikey sıralama
-                    }}>
+                    <Paper sx={{ padding: '1.5rem', height: '100%', display: 'flex', flexDirection: 'column' }}>
                         <Typography variant="h6" gutterBottom>
                             Yeni Ürün Ekle
                         </Typography>
-                        {/* Stack ile form elemanlarını düzenliyoruz */}
-                        <Stack spacing={2} sx={{ flexGrow: 1 }}> {/* flexGrow: 1 ile alanı doldurur */}
+                        <Stack spacing={2} sx={{ flexGrow: 1 }}>
                             <TextField
                                 label="Barkod Numarası"
                                 fullWidth
                                 value={newBarcode}
                                 onChange={(e) => setNewBarcode(e.target.value)}
+                                disabled={isLoading}
                             />
                             <TextField
                                 label="Ürün Adı"
                                 fullWidth
                                 value={newProductName}
                                 onChange={(e) => setNewProductName(e.target.value)}
+                                disabled={isLoading}
                             />
                             <TextField
                                 label="Fiyat (TL)"
@@ -90,6 +130,7 @@ const Urunlerim = () => {
                                 type="number"
                                 value={newPrice}
                                 onChange={(e) => setNewPrice(e.target.value)}
+                                disabled={isLoading}
                             />
                             <TextField
                                 label="Stok Adedi"
@@ -97,53 +138,57 @@ const Urunlerim = () => {
                                 type="number"
                                 value={newStock}
                                 onChange={(e) => setNewStock(e.target.value)}
+                                disabled={isLoading}
                             />
                         </Stack>
-                        {/* Butonu en alta itmek için mt: 'auto' */}
                         <Button
                             variant="contained"
-                            startIcon={<AddCircleIcon />}
-                            sx={{ marginTop: 'auto', paddingTop: '10px', paddingBottom: '10px' }} // mt: 'auto' yerine '1rem' daha iyi olabilir
+                            startIcon={isLoading ? <CircularProgress size={20} color="inherit" /> : <AddCircleIcon />}
+                            sx={{ marginTop: '1rem', paddingTop: '10px', paddingBottom: '10px' }}
                             onClick={handleAddProduct}
                             fullWidth
+                            disabled={isLoading}
                         >
-                            Ürünü Ekle
+                            {isLoading ? "Ekleniyor..." : "Ürünü Ekle"}
                         </Button>
                     </Paper>
                 </Grid>
 
-                {/* Sağ Taraf: Ürün Listesi */}
                 <Grid item xs={12} md={8}>
-                    <Paper sx={{ height: '100%' }}> {/* <<<=== Yüksekliği %100 yaptık */}
-                        <TableContainer sx={{ height: '100%' }}> {/* Tabloya da yükseklik */}
-                            <Table stickyHeader> {/* Başlık sabit kalsın */}
-                                <TableHead>
-                                    <TableRow sx={{
-                                        '& .MuiTableCell-head': { // Başlık hücrelerine stil
-                                            backgroundColor: 'grey.200',
-                                            fontWeight: 'bold'
-                                        }
-                                    }}>
-                                        <TableCell>Barkod</TableCell>
-                                        <TableCell>Ürün Adı</TableCell>
-                                        <TableCell align="right">Fiyat</TableCell>
-                                        <TableCell align="right">Stok</TableCell>
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {products.map((product) => (
-                                        <TableRow
-                                            key={product.id}
-                                            sx={{ '&:last-child td, &:last-child th': { border: 0 } }} // Son satırın alt çizgisini kaldır
-                                        >
-                                            <TableCell>{product.barcode}</TableCell>
-                                            <TableCell>{product.productName}</TableCell>
-                                            <TableCell align="right">{product.price.toFixed(2)} TL</TableCell>
-                                            <TableCell align="right">{product.stock}</TableCell>
+                    <Paper sx={{ height: '100%' }}>
+                        <TableContainer sx={{ height: '100%' }}>
+                            {isLoading && products.length === 0 && ( // Sadece ilk yüklemede ve ürün yoksa
+                                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                                    <CircularProgress />
+                                </Box>
+                            )}
+                            {!isLoading && products.length === 0 && (
+                                <Typography sx={{ textAlign: 'center', padding: '2rem' }}>
+                                    Gösterilecek ürün bulunamadı.
+                                </Typography>
+                            )}
+                            {products.length > 0 && (
+                                <Table stickyHeader>
+                                    <TableHead>
+                                        <TableRow sx={{ '& .MuiTableCell-head': { backgroundColor: 'grey.200', fontWeight: 'bold' } }}>
+                                            <TableCell>Barkod</TableCell>
+                                            <TableCell>Ürün Adı</TableCell>
+                                            <TableCell align="right">Fiyat</TableCell>
+                                            <TableCell align="right">Stok</TableCell>
                                         </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
+                                    </TableHead>
+                                    <TableBody>
+                                        {products.map((product) => (
+                                            <TableRow key={product.urunID} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                                                <TableCell>{product.barkod}</TableCell>
+                                                <TableCell>{product.urunAdi}</TableCell>
+                                                <TableCell align="right">{product.fiyat.toFixed(2)} TL</TableCell>
+                                                <TableCell align="right">{product.stok}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            )}
                         </TableContainer>
                     </Paper>
                 </Grid>
