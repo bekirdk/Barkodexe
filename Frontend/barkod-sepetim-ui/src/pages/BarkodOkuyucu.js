@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react'; // useCallback eklendi
 import {
     Typography,
     Box,
@@ -11,69 +11,92 @@ import {
     ListItem,
     ListItemText,
     Divider,
-    IconButton
+    IconButton,
+    CircularProgress // Yükleme göstergesi için
 } from '@mui/material';
 import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner';
 import AddShoppingCartIcon from '@mui/icons-material/AddShoppingCart';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useCart } from '../context/CartContext';
-import { findProductByBarcode } from '../data/products';
+// import { findProductByBarcode } from '../data/products'; // Artık buna ihtiyacımız yok
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios'; // axios'u import ediyoruz
+
+const API_URL = 'http://localhost:5194/api'; // Backend API adresimiz
 
 const BarkodOkuyucu = () => {
     const [barcode, setBarcode] = useState('');
     const [message, setMessage] = useState(null);
     const [error, setError] = useState(false);
+    const [isLoading, setIsLoading] = useState(false); // Yükleme durumu için
     const { cartItems, addToCart, getCartTotal, removeFromCart } = useCart();
     const navigate = useNavigate();
 
     const handleInputChange = (event) => {
         setBarcode(event.target.value);
-        setMessage(null);
+        setMessage(null); // Yazmaya başlayınca mesajı temizle
+        setError(false);
     };
 
-    const handleAddToCart = () => {
+    // handleAddToCart fonksiyonunu useCallback ile sarmalıyoruz
+    // çünkü handleKeyDown içinde kullanılıyor ve gereksiz yere yeniden oluşmasını engelliyoruz.
+    const handleAddToCart = useCallback(async () => {
         if (!barcode.trim()) {
             setMessage("Lütfen bir barkod girin.");
             setError(true);
             return;
         }
 
-        const product = findProductByBarcode(barcode.trim());
+        setIsLoading(true);
+        setMessage(null);
+        setError(false);
 
-        if (product) {
-            addToCart(product);
-            setMessage(`${product.productName} başarıyla sepete eklendi!`);
-            setError(false);
-            setBarcode('');
-        } else {
-            setMessage("Bu barkoda sahip bir ürün bulunamadı.");
+        try {
+            // Backend API'mizden barkoda göre ürünü arıyoruz
+            const response = await axios.get(`${API_URL}/urunler/${barcode.trim()}`);
+            const product = response.data; // API'den gelen ürün bilgisi
+
+            if (product) {
+                addToCart(product); // Ürünü Context API ile sepete ekle
+                setMessage(`${product.productName} başarıyla sepete eklendi!`);
+                setError(false);
+                setBarcode(''); // Input'u temizle
+            }
+            // Backend zaten bulunamayınca 404 döneceği için else bloğuna gerek kalmayabilir
+            // ancak yine de bir güvenlik önlemi olarak bırakılabilir veya try-catch ile yönetilebilir.
+        } catch (err) {
+            if (err.response && err.response.status === 404) {
+                setMessage("Bu barkoda sahip bir ürün bulunamadı.");
+            } else {
+                setMessage("Ürün aranırken bir hata oluştu: " + (err.response?.data?.message || err.message));
+                console.error("Barkodla ürün arama hatası:", err);
+            }
             setError(true);
+        } finally {
+            setIsLoading(false);
         }
-    };
+    }, [barcode, addToCart]); // Bağımlılıkları ekledik
 
-    const handleKeyDown = (event) => {
+    const handleKeyDown = useCallback((event) => {
         if (event.key === 'Enter') {
             event.preventDefault();
             handleAddToCart();
         }
-    };
+    }, [handleAddToCart]); // handleAddToCart bağımlılığını ekledik
 
     return (
-        <Box> {/* Ana Sayfa Box'ı */}
+        <Box>
             <Typography variant="h4" gutterBottom>
                 Barkod Okuyucu & Sepet
             </Typography>
 
-            {/* İçerik Alanını Saran ve Ortalanan Box */}
             <Box
                 sx={{
-                    maxWidth: '700px', // Maksimum genişliği 700px yapalım (değiştirebilirsiniz)
-                    margin: '0 auto',  // Otomatik margin ile ortalayalım
+                    maxWidth: '700px',
+                    margin: '0 auto',
                 }}
             >
-                {/* Barkod Giriş Alanı */}
                 <Paper
                     elevation={3}
                     sx={{
@@ -87,7 +110,7 @@ const BarkodOkuyucu = () => {
                             Barkodu Okutun veya Girin
                         </Typography>
                         {message && (
-                            <Alert severity={error ? "error" : "success"} sx={{ width: '100%' }}>
+                            <Alert severity={error ? "error" : "success"} sx={{ width: '100%', mt: 1 }}>
                                 {message}
                             </Alert>
                         )}
@@ -99,21 +122,21 @@ const BarkodOkuyucu = () => {
                             onChange={handleInputChange}
                             onKeyDown={handleKeyDown}
                             autoFocus
+                            disabled={isLoading} // Yükleme sırasında pasif yap
                             sx={{ marginY: '1rem' }}
                         />
                         <Button
                             variant="contained"
                             size="large"
-                            startIcon={<AddShoppingCartIcon />}
+                            startIcon={isLoading ? <CircularProgress size={20} color="inherit" /> : <AddShoppingCartIcon />}
                             onClick={handleAddToCart}
-                            disabled={!barcode.trim()}
+                            disabled={!barcode.trim() || isLoading} // Barkod boşsa veya yükleniyorsa pasif yap
                         >
-                            Sepete Ekle
+                            {isLoading ? "Aranıyor..." : "Sepete Ekle"}
                         </Button>
                     </Stack>
                 </Paper>
 
-                {/* Sepet Özeti Alanı */}
                 <Paper
                     elevation={3}
                     sx={{
@@ -135,16 +158,16 @@ const BarkodOkuyucu = () => {
                             <List dense sx={{ maxHeight: '300px', overflow: 'auto' }}>
                                 {cartItems.map(item => (
                                     <ListItem
-                                        key={item.id}
+                                        key={item.urunID} // API'den gelen urunID'yi kullanalım
                                         secondaryAction={
-                                            <IconButton edge="end" aria-label="delete" size="small" onClick={() => removeFromCart(item.id)}>
+                                            <IconButton edge="end" aria-label="delete" size="small" onClick={() => removeFromCart(item.urunID)}>
                                                 <DeleteIcon fontSize="small" />
                                             </IconButton>
                                         }
                                     >
                                         <ListItemText
-                                            primary={`${item.productName} (x${item.quantity})`}
-                                            secondary={`${(item.price * item.quantity).toFixed(2)} TL`}
+                                            primary={`${item.urunAdi} (x${item.quantity})`} // API'den gelen urunAdi
+                                            secondary={`${(item.fiyat * item.quantity).toFixed(2)} TL`} // API'den gelen fiyat
                                         />
                                     </ListItem>
                                 ))}

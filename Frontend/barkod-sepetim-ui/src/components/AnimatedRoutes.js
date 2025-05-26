@@ -1,7 +1,10 @@
 import React from 'react';
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Box } from '@mui/material'; // <<<=== BURAYA TAŞIDIK!
+import { Box, Typography } from '@mui/material'; // Typography buraya taşındı
+
+// Context
+import { useAuth } from '../context/AuthContext';
 
 // Sayfaları import edelim
 import AnaSayfa from '../pages/AnaSayfa';
@@ -9,8 +12,9 @@ import BarkodOkuyucu from '../pages/BarkodOkuyucu';
 import Urunlerim from '../pages/Urunlerim';
 import Sepetim from '../pages/Sepetim';
 import Hesabim from '../pages/Hesabim';
+import LoginPage from '../pages/LoginPage';
+import RegisterPage from '../pages/RegisterPage';
 
-// Yeni: Hızlı ve Şık Solma (Fade) Animasyonu
 const pageVariants = {
     initial: {
         opacity: 0,
@@ -29,7 +33,6 @@ const pageTransition = {
     duration: 0.3
 };
 
-
 const PageWrapper = ({ children }) => (
     <motion.div
         initial="initial"
@@ -43,19 +46,64 @@ const PageWrapper = ({ children }) => (
     </motion.div>
 );
 
+const ProtectedRoute = ({ children }) => {
+    const { currentUser, isLoadingAuth } = useAuth();
+
+    if (isLoadingAuth) {
+        return <Typography>Yükleniyor...</Typography>;
+    }
+
+    if (!currentUser) {
+        return <Navigate to="/login" replace />;
+    }
+
+    return children;
+};
 
 const AnimatedRoutes = () => {
     const location = useLocation();
+    const { isLoadingAuth } = useAuth(); // Sadece isLoadingAuth'u alıyoruz
+
+    if (isLoadingAuth) {
+        return <Box display="flex" justifyContent="center" alignItems="center" height="100vh"><Typography>Kimlik durumu kontrol ediliyor...</Typography></Box>;
+    }
 
     return (
-        <Box sx={{ position: 'relative', width: '100%', minHeight: '80vh' }}> {/* 80vh veya uygun bir yükseklik */}
+        <Box sx={{ position: 'relative', width: '100%', minHeight: 'calc(100vh - 64px - 48px)' }}>
             <AnimatePresence mode="wait">
                 <Routes location={location} key={location.pathname}>
-                    <Route path="/" element={<PageWrapper><AnaSayfa /></PageWrapper>} />
-                    <Route path="/scanner" element={<PageWrapper><BarkodOkuyucu /></PageWrapper>} />
-                    <Route path="/products" element={<PageWrapper><Urunlerim /></PageWrapper>} />
-                    <Route path="/cart" element={<PageWrapper><Sepetim /></PageWrapper>} />
-                    <Route path="/account" element={<PageWrapper><Hesabim /></PageWrapper>} />
+                    {/* Herkesin Erişebileceği Rotalar */}
+                    <Route path="/login" element={<PageWrapper><LoginPage /></PageWrapper>} />
+                    <Route path="/register" element={<PageWrapper><RegisterPage /></PageWrapper>} />
+
+                    {/* Sadece Giriş Yapmış Kullanıcıların Erişebileceği Rotalar */}
+                    <Route path="/" element={
+                        <ProtectedRoute>
+                            <PageWrapper><AnaSayfa /></PageWrapper>
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/scanner" element={
+                        <ProtectedRoute>
+                            <PageWrapper><BarkodOkuyucu /></PageWrapper>
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/products" element={
+                        <ProtectedRoute>
+                            <PageWrapper><Urunlerim /></PageWrapper>
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/cart" element={
+                        <ProtectedRoute>
+                            <PageWrapper><Sepetim /></PageWrapper>
+                        </ProtectedRoute>
+                    } />
+                     <Route path="/account" element={
+                        <ProtectedRoute>
+                            <PageWrapper><Hesabim /></PageWrapper>
+                        </ProtectedRoute>
+                    } />
+
+                    <Route path="*" element={<PageWrapper><Typography variant="h3">404 - Sayfa Bulunamadı</Typography></PageWrapper>} />
                 </Routes>
             </AnimatePresence>
         </Box>
