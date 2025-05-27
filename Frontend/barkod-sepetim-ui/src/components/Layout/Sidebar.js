@@ -2,7 +2,6 @@ import React from 'react';
 import {
     Drawer, Box, List, ListItem, ListItemButton,
     ListItemIcon, ListItemText, Toolbar, Divider, Typography, Badge
-    // Kullanılmayan 'Button' importu kaldırıldı
 } from '@mui/material';
 import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner';
 import InventoryIcon from '@mui/icons-material/Inventory';
@@ -16,11 +15,11 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 
-const drawerWidth = 240;
-const darkBackgroundColor = '#1E1E1E';
+const drawerWidth = 240; // Orijinal genişlik
+const darkBackgroundColor = '#1E1E1E'; // İlk karanlık tema rengimiz
 const lightTextColor = '#E0E0E0';
-const activeBackgroundColor = '#FFFFFF';
-const activeTextColor = '#1E1E1E';
+const activeBackgroundColor = '#FFFFFF'; // Aktif link için beyaz arka plan
+const activeTextColor = '#1E1E1E';    // Aktif link için koyu metin
 const hoverBackgroundColor = '#333333';
 
 const Sidebar = () => {
@@ -33,16 +32,20 @@ const Sidebar = () => {
         navigate('/login');
     };
 
+    // Bu stil fonksiyonu, aktif linke beyaz arka plan ve koyu yazı verecek
     const getNavLinkStyle = ({ isActive }) => ({
         textDecoration: 'none',
         display: 'block',
         width: '100%',
-        borderRadius: '8px',
+        borderRadius: '8px', // Yuvarlak kenarlar
         backgroundColor: isActive ? activeBackgroundColor : 'transparent',
-        color: isActive ? activeTextColor : lightTextColor,
+        color: isActive ? activeTextColor : lightTextColor, // Aktif/Pasif metin rengi
         '&:hover': {
             backgroundColor: isActive ? activeBackgroundColor : hoverBackgroundColor,
         },
+         // ListItemButton içindeki ikon ve metinlere ayrıca stil vermek için
+        // doğrudan ListItemButton'a sx prop'u ile stil vermek daha iyi olabilir.
+        // Bu kısmı basitleştirip, doğrudan ListItemButton'a sx vereceğiz.
     });
 
     const loggedInMenuItems = [
@@ -67,8 +70,11 @@ const Sidebar = () => {
                 width: drawerWidth,
                 flexShrink: 0,
                 [`& .MuiDrawer-paper`]: {
-                    width: drawerWidth, boxSizing: 'border-box', backgroundColor: darkBackgroundColor,
-                    borderRight: 'none', color: lightTextColor,
+                    width: drawerWidth,
+                    boxSizing: 'border-box',
+                    backgroundColor: darkBackgroundColor, // Koyu arka plan
+                    borderRight: 'none',
+                    color: lightTextColor, // Varsayılan metin rengi
                 },
             }}
         >
@@ -84,9 +90,20 @@ const Sidebar = () => {
                     {menuItemsToDisplay.map((item) => (
                         <ListItem key={item.text} disablePadding sx={{ marginBottom: '8px' }}>
                             <NavLink to={item.path} style={getNavLinkStyle}>
-                                {({ isActive }) => (
-                                    <ListItemButton sx={{ borderRadius: '8px', padding: '10px 16px' }}>
-                                        <ListItemIcon sx={{ color: isActive ? activeTextColor : lightTextColor, minWidth: '40px' }}>
+                                {({ isActive }) => ( // isActive durumunu alıyoruz
+                                    <ListItemButton sx={{
+                                        borderRadius: '8px',
+                                        padding: '10px 16px',
+                                        // NavLink'teki stil yerine doğrudan buraya uygulayalım
+                                        backgroundColor: isActive ? activeBackgroundColor : 'transparent',
+                                        '&:hover': {
+                                            backgroundColor: isActive ? activeBackgroundColor : hoverBackgroundColor,
+                                        },
+                                    }}>
+                                        <ListItemIcon sx={{
+                                            color: isActive ? activeTextColor : lightTextColor,
+                                            minWidth: '40px'
+                                        }}>
                                             {item.id === 'cart' && currentUser ? (
                                                 <Badge badgeContent={cartItemCount} color="primary">
                                                     {item.icon}
@@ -99,7 +116,9 @@ const Sidebar = () => {
                                             primary={item.text}
                                             sx={{
                                                 color: isActive ? activeTextColor : lightTextColor,
-                                                '& .MuiTypography-root': { fontWeight: isActive ? 'bold' : 'normal' }
+                                                '& .MuiTypography-root': {
+                                                     fontWeight: isActive ? 'bold' : 'normal'
+                                                }
                                             }}
                                         />
                                     </ListItemButton>
@@ -116,7 +135,11 @@ const Sidebar = () => {
                     <List sx={{ padding: '10px' }}>
                         <ListItem disablePadding>
                             <ListItemButton
-                                sx={{ borderRadius: '8px', padding: '10px 16px', '&:hover': { backgroundColor: hoverBackgroundColor } }}
+                                sx={{
+                                    borderRadius: '8px',
+                                    padding: '10px 16px',
+                                    '&:hover': { backgroundColor: hoverBackgroundColor }
+                                }}
                                 onClick={handleLogout}
                             >
                                 <ListItemIcon sx={{ color: lightTextColor, minWidth: '40px' }}>
