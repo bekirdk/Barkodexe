@@ -1,26 +1,104 @@
 import React from 'react';
 import {
     Drawer, Box, List, ListItem, ListItemButton,
-    ListItemIcon, ListItemText, Toolbar, Divider, Typography, Badge
+    ListItemIcon, ListItemText, Toolbar, Typography, Badge,
+    Divider // <<<=== Divider BURAYA EKLENDİ
 } from '@mui/material';
-import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner';
-import InventoryIcon from '@mui/icons-material/Inventory';
-import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
-import AccountCircleIcon from '@mui/icons-material/AccountCircle';
-import HomeIcon from '@mui/icons-material/Home';
-import LogoutIcon from '@mui/icons-material/Logout';
-import LoginIcon from '@mui/icons-material/Login';
-import AppRegistrationIcon from '@mui/icons-material/AppRegistration';
+// İkonları import edelim
+import DashboardIcon from '@mui/icons-material/Dashboard';
+import QrCodeScannerOutlinedIcon from '@mui/icons-material/QrCodeScannerOutlined'; // Outlined versiyon
+import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
+import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined';
+import PersonOutlineOutlinedIcon from '@mui/icons-material/PersonOutlineOutlined';
+import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
+import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
+import LoginOutlinedIcon from '@mui/icons-material/LoginOutlined';
+import AppRegistrationOutlinedIcon from '@mui/icons-material/AppRegistrationOutlined';
+// Logo için var olan bir ikon kullanalım:
+import QrCode2Icon from '@mui/icons-material/QrCode2'; // Daha belirgin bir barkod/QR ikonu
+
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 
-const drawerWidth = 240; // Orijinal genişlik
-const darkBackgroundColor = '#1E1E1E'; // İlk karanlık tema rengimiz
-const lightTextColor = '#E0E0E0';
-const activeBackgroundColor = '#FFFFFF'; // Aktif link için beyaz arka plan
-const activeTextColor = '#1E1E1E';    // Aktif link için koyu metin
-const hoverBackgroundColor = '#333333';
+const drawerWidth = 260;
+const sidebarBackgroundColor = '#FFFFFF';
+const logoTextColor = '#1F2937';
+const listHeaderTextColor = '#6B7280';
+const menuItemTextColor = '#374151';
+const menuItemIconColor = '#6B7280';
+const activeItemColor = '#4F46E5';
+const activeItemBackground = 'rgba(79, 70, 229, 0.08)';
+const hoverBackground = 'rgba(0, 0, 0, 0.04)';
+
+const ListHeader = ({ text }) => (
+    <Typography
+        variant="overline"
+        sx={{
+            padding: '20px 16px 8px 16px',
+            color: listHeaderTextColor,
+            fontWeight: 600,
+            display: 'block',
+            fontSize: '0.70rem',
+            letterSpacing: '0.05em'
+        }}
+    >
+        {text}
+    </Typography>
+);
+
+const SidebarNavItem = ({ item, isActive }) => {
+    const iconColor = isActive ? activeItemColor : menuItemIconColor;
+    const textColor = isActive ? activeItemColor : menuItemTextColor;
+    const itemBackgroundColor = isActive ? activeItemBackground : 'transparent';
+
+    return (
+        <ListItemButton
+            sx={{
+                borderRadius: '6px',
+                margin: '2px 0',
+                padding: '8px 16px',
+                backgroundColor: itemBackgroundColor,
+                color: textColor,
+                position: 'relative',
+                '&:hover': {
+                    backgroundColor: isActive ? activeItemBackground : hoverBackground,
+                },
+                '&::before': isActive ? { // Aktif link için sol tarafa dikey çizgi
+                    content: '""',
+                    position: 'absolute',
+                    left: 0,
+                    top: '15%',
+                    bottom: '15%',
+                    width: '3.5px',
+                    backgroundColor: activeItemColor,
+                    borderTopRightRadius: '4px',
+                    borderBottomRightRadius: '4px'
+                } : {},
+            }}
+        >
+            <ListItemIcon sx={{ color: iconColor, minWidth: '38px' }}>
+                {item.id === 'cart' && item.showCartBadge ? (
+                    <Badge badgeContent={item.cartItemCount} color="error"
+                        sx={{ '& .MuiBadge-badge': { fontWeight: 'bold' } }}
+                    >
+                        {React.cloneElement(item.icon, { sx: { fontSize: '1.25rem' } })}
+                    </Badge>
+                ) : (
+                    React.cloneElement(item.icon, { sx: { fontSize: '1.25rem' } })
+                )}
+            </ListItemIcon>
+            <ListItemText
+                primary={item.text}
+                primaryTypographyProps={{
+                    fontWeight: isActive ? 600 : 500,
+                    fontSize: '0.875rem',
+                    color: textColor
+                }}
+            />
+        </ListItemButton>
+    );
+};
 
 const Sidebar = () => {
     const { cartItemCount } = useCart();
@@ -32,36 +110,22 @@ const Sidebar = () => {
         navigate('/login');
     };
 
-    // Bu stil fonksiyonu, aktif linke beyaz arka plan ve koyu yazı verecek
-    const getNavLinkStyle = ({ isActive }) => ({
-        textDecoration: 'none',
-        display: 'block',
-        width: '100%',
-        borderRadius: '8px', // Yuvarlak kenarlar
-        backgroundColor: isActive ? activeBackgroundColor : 'transparent',
-        color: isActive ? activeTextColor : lightTextColor, // Aktif/Pasif metin rengi
-        '&:hover': {
-            backgroundColor: isActive ? activeBackgroundColor : hoverBackgroundColor,
-        },
-         // ListItemButton içindeki ikon ve metinlere ayrıca stil vermek için
-        // doğrudan ListItemButton'a sx prop'u ile stil vermek daha iyi olabilir.
-        // Bu kısmı basitleştirip, doğrudan ListItemButton'a sx vereceğiz.
-    });
-
-    const loggedInMenuItems = [
-        { text: 'Ana Sayfa', icon: <HomeIcon />, path: '/' },
-        { text: 'Barkod Okuyucu', icon: <QrCodeScannerIcon />, path: '/scanner' },
-        { text: 'Ürünlerim', icon: <InventoryIcon />, path: '/products' },
-        { text: 'Sepetim', icon: <ShoppingCartIcon />, path: '/cart', id: 'cart' },
-        { text: 'Hesabım', icon: <AccountCircleIcon />, path: '/account' },
+    const mainMenuItems = [
+        { text: 'Ana Panel', icon: <DashboardIcon fontSize="small"/>, path: '/' },
+        { text: 'Barkod Okuyucu', icon: <QrCodeScannerOutlinedIcon fontSize="small"/>, path: '/scanner' },
+        { text: 'Ürün Yönetimi', icon: <Inventory2OutlinedIcon fontSize="small"/>, path: '/products' },
+        { text: 'Satış Sepeti', icon: <ShoppingCartOutlinedIcon fontSize="small"/>, path: '/cart', id: 'cart', showCartBadge: currentUser, cartItemCount },
     ];
 
-    const loggedOutMenuItems = [
-        { text: 'Giriş Yap', icon: <LoginIcon />, path: '/login' },
-        { text: 'Kayıt Ol', icon: <AppRegistrationIcon />, path: '/register' },
+    const userManagementItems = [
+        { text: 'Hesabım', icon: <PersonOutlineOutlinedIcon fontSize="small"/>, path: '/account' },
+        { text: 'Ayarlar', icon: <SettingsOutlinedIcon fontSize="small"/>, path: '/settings' },
     ];
 
-    const menuItemsToDisplay = currentUser ? loggedInMenuItems : loggedOutMenuItems;
+    const guestMenuItems = [
+        { text: 'Giriş Yap', icon: <LoginOutlinedIcon fontSize="small"/>, path: '/login' },
+        { text: 'Kayıt Ol', icon: <AppRegistrationOutlinedIcon fontSize="small"/>, path: '/register' },
+    ];
 
     return (
         <Drawer
@@ -72,84 +136,75 @@ const Sidebar = () => {
                 [`& .MuiDrawer-paper`]: {
                     width: drawerWidth,
                     boxSizing: 'border-box',
-                    backgroundColor: darkBackgroundColor, // Koyu arka plan
-                    borderRight: 'none',
-                    color: lightTextColor, // Varsayılan metin rengi
+                    backgroundColor: sidebarBackgroundColor,
+                    borderRight: `1px solid #EAECF0`,
+                    color: menuItemTextColor, // Varsayılan metin rengini menuItemTextColor yaptık
+                    px: '16px',
                 },
             }}
         >
-            <Toolbar sx={{ justifyContent: 'center', paddingY: '1rem !important' }}>
-                <Typography variant="h5" sx={{ color: '#FFFFFF', fontWeight: 'bold' }}>
-                   <span style={{color: '#FADDAA'}}>Barkod</span>Sepetim
+            <Toolbar sx={{ justifyContent: 'flex-start', alignItems: 'center', py: '18px !important', pl: '0px !important', height: '64px', mb:1 }}>
+                <QrCode2Icon sx={{ color: activeItemColor, fontSize: '2.4rem', mr: 1.5 }} /> {/* Logo olarak QrCode2Icon */}
+                <Typography variant="h6" sx={{ color: logoTextColor, fontWeight: '600' }}>
+                    BarkodSepetim
                 </Typography>
             </Toolbar>
-            <Divider sx={{ backgroundColor: '#444' }} />
 
-            <Box sx={{ overflow: 'auto', padding: '10px', flexGrow: 1 }}>
-                <List>
-                    {menuItemsToDisplay.map((item) => (
-                        <ListItem key={item.text} disablePadding sx={{ marginBottom: '8px' }}>
-                            <NavLink to={item.path} style={getNavLinkStyle}>
-                                {({ isActive }) => ( // isActive durumunu alıyoruz
-                                    <ListItemButton sx={{
-                                        borderRadius: '8px',
-                                        padding: '10px 16px',
-                                        // NavLink'teki stil yerine doğrudan buraya uygulayalım
-                                        backgroundColor: isActive ? activeBackgroundColor : 'transparent',
-                                        '&:hover': {
-                                            backgroundColor: isActive ? activeBackgroundColor : hoverBackgroundColor,
-                                        },
-                                    }}>
-                                        <ListItemIcon sx={{
-                                            color: isActive ? activeTextColor : lightTextColor,
-                                            minWidth: '40px'
-                                        }}>
-                                            {item.id === 'cart' && currentUser ? (
-                                                <Badge badgeContent={cartItemCount} color="primary">
-                                                    {item.icon}
-                                                </Badge>
-                                            ) : (
-                                                item.icon
-                                            )}
-                                        </ListItemIcon>
-                                        <ListItemText
-                                            primary={item.text}
-                                            sx={{
-                                                color: isActive ? activeTextColor : lightTextColor,
-                                                '& .MuiTypography-root': {
-                                                     fontWeight: isActive ? 'bold' : 'normal'
-                                                }
-                                            }}
-                                        />
-                                    </ListItemButton>
+            <Box sx={{ overflowY: 'auto', overflowX: 'hidden', flexGrow: 1, pt: 0 }}>
+                {currentUser ? (
+                    <>
+                        <ListHeader text="Ana Menü" />
+                        <List dense sx={{ p: 0 }}>
+                            {mainMenuItems.map((item) => (
+                                <NavLink key={item.text} to={item.path} style={{ textDecoration: 'none' }}>
+                                    {({ isActive }) => (
+                                        <ListItem disablePadding>
+                                            <SidebarNavItem item={item} isActive={isActive} />
+                                        </ListItem>
+                                    )}
+                                </NavLink>
+                            ))}
+                        </List>
+
+                        <ListHeader text="Yönetim" />
+                        <List dense sx={{ p: 0 }}>
+                            {userManagementItems.map((item) => (
+                                <NavLink key={item.text} to={item.path} style={{ textDecoration: 'none' }}>
+                                     {({ isActive }) => (
+                                        <ListItem disablePadding>
+                                            <SidebarNavItem item={item} isActive={isActive} />
+                                        </ListItem>
+                                    )}
+                                </NavLink>
+                            ))}
+                        </List>
+                    </>
+                ) : (
+                    <List dense sx={{ p: 0 }}>
+                        {guestMenuItems.map((item) => (
+                             <NavLink key={item.text} to={item.path} style={{ textDecoration: 'none' }}>
+                                 {({ isActive }) => (
+                                    <ListItem disablePadding>
+                                        <SidebarNavItem item={item} isActive={isActive} />
+                                    </ListItem>
                                 )}
                             </NavLink>
-                        </ListItem>
-                    ))}
-                </List>
+                        ))}
+                    </List>
+                )}
             </Box>
 
             {currentUser && (
-                <>
-                    <Divider sx={{ backgroundColor: '#444' }} />
-                    <List sx={{ padding: '10px' }}>
-                        <ListItem disablePadding>
-                            <ListItemButton
-                                sx={{
-                                    borderRadius: '8px',
-                                    padding: '10px 16px',
-                                    '&:hover': { backgroundColor: hoverBackgroundColor }
-                                }}
-                                onClick={handleLogout}
-                            >
-                                <ListItemIcon sx={{ color: lightTextColor, minWidth: '40px' }}>
-                                    <LogoutIcon />
-                                </ListItemIcon>
-                                <ListItemText primary="Çıkış Yap" />
-                            </ListItemButton>
-                        </ListItem>
-                    </List>
-                </>
+                <Box sx={{ py: 2 }}>
+                    <Divider sx={{ backgroundColor: '#EAECF0', mx: 0, mb: 1 }} />
+                     <NavLink to="#" onClick={handleLogout} style={{ textDecoration: 'none' }}>
+                        {() => ( // isActive burada gereksiz olduğu için kaldırdık
+                            <ListItem disablePadding>
+                                 <SidebarNavItem item={{text: 'Çıkış Yap', icon: <LogoutOutlinedIcon fontSize="small"/>}} isActive={false} />
+                            </ListItem>
+                        )}
+                    </NavLink>
+                </Box>
             )}
         </Drawer>
     );

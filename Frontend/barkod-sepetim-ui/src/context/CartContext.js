@@ -1,70 +1,72 @@
 import React, { createContext, useState, useContext, useCallback } from 'react';
 
-// 1. Context'i oluştur
 const CartContext = createContext();
 
-// 2. Bu Context'i kolayca kullanmak için bir custom hook oluştur
 export const useCart = () => {
     return useContext(CartContext);
 };
 
-// 3. Context'i sağlayacak Provider bileşenini oluştur
 export const CartProvider = ({ children }) => {
-    const [cartItems, setCartItems] = useState([]); // Sepetteki ürünleri tutan state
+    const [cartItems, setCartItems] = useState([]);
 
-    // Sepete Ürün Ekleme Fonksiyonu
-    const addToCart = useCallback((product) => {
+    const addToCart = useCallback((product) => { // Gelen 'product' objesinin urunID, urunAdi, fiyat içerdiğini varsayıyoruz
         setCartItems((prevItems) => {
-            const existingItem = prevItems.find((item) => item.id === product.id);
+            const existingItem = prevItems.find((item) => item.urunID === product.urunID);
 
             if (existingItem) {
-                // Ürün zaten varsa miktarını artır
                 return prevItems.map((item) =>
-                    item.id === product.id
-                        ? { ...item, quantity: item.quantity + 1 }
+                    item.urunID === product.urunID
+                        ? { ...item, quantity: (item.quantity || 0) + 1 } // quantity tanımsızsa 0 kabul et
                         : item
                 );
             } else {
-                // Ürün yoksa yeni ekle (miktar 1 olarak)
+                // API'den gelen product objesi zaten doğru isimleri (urunID, urunAdi, fiyat) içermeli
                 return [...prevItems, { ...product, quantity: 1 }];
             }
         });
-        console.log(`${product.productName} sepete eklendi!`);
+        console.log(`${product.urunAdi || 'Ürün'} sepete eklendi!`);
     }, []);
 
-    // Sepetten Ürün Çıkarma Fonksiyonu
-    const removeFromCart = useCallback((productId) => {
+    const removeFromCart = useCallback((productId) => { // productId, urunID olacak
         setCartItems((prevItems) => {
-            return prevItems.filter((item) => item.id !== productId);
+            return prevItems.filter((item) => item.urunID !== productId);
         });
         console.log(`${productId} ID'li ürün sepetten çıkarıldı.`);
     }, []);
 
-    // Miktar Güncelleme Fonksiyonu
-    const updateQuantity = useCallback((productId, amount) => {
+    const updateQuantity = useCallback((productId, amount) => { // productId, urunID olacak
         setCartItems((prevItems) => {
             return prevItems.map((item) =>
-                item.id === productId
-                    ? { ...item, quantity: Math.max(1, item.quantity + amount) } // Miktar 1'den az olmasın
+                item.urunID === productId
+                    ? { ...item, quantity: Math.max(1, (item.quantity || 0) + amount) }
                     : item
-            ).filter(item => item.quantity > 0); // Miktar 0 olursa çıkar (isteğe bağlı)
+            ).filter(item => item.quantity > 0);
         });
     }, []);
 
-    // Sepet Toplamını Hesaplama (İleride kullanışlı olabilir)
     const getCartTotal = () => {
-        return cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
+        return cartItems.reduce((total, item) => {
+            const price = item.fiyat || 0;
+            const quantity = item.quantity || 0;
+            return total + (price * quantity);
+        }, 0);
     };
 
+    const cartItemCount = cartItems.reduce((count, item) => count + (item.quantity || 0), 0);
 
-    // Provider'ın dışarıya sunacağı değerler
+    const clearCart = useCallback(() => { // Ödeme sonrası için
+        setCartItems([]);
+        console.log("Sepet temizlendi.");
+    }, []);
+
     const value = {
         cartItems,
         addToCart,
         removeFromCart,
         updateQuantity,
         getCartTotal,
-        cartItemCount: cartItems.reduce((count, item) => count + item.quantity, 0) // Toplam ürün sayısı
+        cartItemCount,
+        clearCart // clearCart'ı da ekledik
     };
 
     return (
